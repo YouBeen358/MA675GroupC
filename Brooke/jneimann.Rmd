@@ -17,3 +17,14 @@ playmates = read.csv("Individual-level with calculate.csv")
 mean(playmates$Partners_count)
 ```
 
+```{r}
+avg_partner_count <- aggregate(Partners_count ~ Age, data = playmates, FUN = mean)
+ggplot(avg_partner_count, aes(x = Age, y = Partners_count)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Average Partner Count by Age",
+       x = "Age",
+       y = "Average Partner Count") +
+  theme_minimal()
+```
+
