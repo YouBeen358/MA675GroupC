@@ -8,22 +8,106 @@ date: "2024-10-11"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+# Load the necessary libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
 ```
 
-## Including Plots
+```{r}
+# Load the datasets
+df_basic <- read.csv("Individual-level basic variable.csv")
+df_calculate <- read.csv("Individual-level with calculate.csv")
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+# View the structure of the data
+str(df_basic)
+str(df_calculate)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## handle the missing data
+```{r}
+# Check for missing values
+colSums(is.na(df_basic))
+colSums(is.na(df_calculate))
+
+df_basic_clean <- df_basic %>% drop_na()
+df_calculate_clean <- df_calculate %>% drop_na()
+
+summary(df_basic_clean)
+summary(df_calculate_clean)
+```
+
+## Age and Sex Distribution
+```{r}
+ggplot(df_basic, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Age Distribution", x = "Age", y = "Frequency")
+```
+
+A little right skewed.
+
+```{r}
+ggplot(df_basic, aes(x = Sex)) +
+  geom_bar(fill = "green") +
+  theme_minimal() +
+  labs(title = "Sex Distribution", x = "Sex", y = "Count")
+```
+Number of female and male playmates are close.
+
+```{r}
+# Simple linear regression using Age as the predictor for Count_unrelated
+model <- lm(Count_unrelated ~ Age, data = df_basic)
+summary(model)
+
+ggplot(df_basic, aes(x = Age, y = Count_unrelated)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  theme_minimal() +
+  labs(title = "Linear Regression: Age vs. Count of Unrelated Individuals", x = "Age", y = "Count Unrelated")
+```
+
+## check for other possible predictors
+```{r}
+# Select relevant numeric and factor variables for the analysis
+df_basic_clean <- df_basic %>% select(Age, Sex, SchoolSimplified, Neighborhood, Count_unrelated)
+
+# Check for correlations (only for numeric variables)
+cor(df_basic_clean %>% select_if(is.numeric))
+
+summary(df_basic_clean)
+```
+
+```{r}
+# Convert categorical variables to factors
+df_basic_clean$Sex <- as.factor(df_basic_clean$Sex)
+df_basic_clean$SchoolSimplified <- as.factor(df_basic_clean$SchoolSimplified)
+df_basic_clean$Neighborhood <- as.factor(df_basic_clean$Neighborhood)
+
+# Fit a multiple linear regression model
+model_multi <- lm(Count_unrelated ~ Age + Sex + SchoolSimplified + Neighborhood, data = df_basic_clean)
+
+summary(model_multi)
+```
+1. Age is statistically significant.
+
+2. Neighborhood: Children living in the Countryside are expected to know around 6.39 more unrelated individuals than children in the reference neighborhood, indicating that the Countryside neighborhood has a strong positive effect on the number of unrelated playmates.
+
+## improve the model
+```{r}
+# Fit a refined model with only Age and Neighborhood as predictors
+model_refined <- lm(Count_unrelated ~ Age + Neighborhood, data = df_basic_clean)
+
+summary(model_refined)
+```
+
+```{r}
+# Fit a model with interaction between Age and Neighborhood
+model_interaction <- lm(Count_unrelated ~ Age * Neighborhood, data = df_basic_clean)
+
+# Summarize the model with interaction
+summary(model_interaction)
+```
+
+It failed to improve the situation.
