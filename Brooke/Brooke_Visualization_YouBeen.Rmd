@@ -330,6 +330,193 @@ ggplot(data, aes(x = Age, y = Partners_count)) +
 ```
 
 ```{r}
+# Load necessary libraries
+library(tidyverse)
 
+# Load the dataset
+df <- read.csv("Individual-level basic variable.csv")
+
+# Ensure Partners_count and CaregiverResidencyDuration are numeric
+df$Partners_count <- as.numeric(df$Partners_count)
+df$CaregiverResidencyDuration <- as.numeric(df$CaregiverResidencyDuration)
+
+# Create a new variable for CaregiverResidencyDuration categories
+df <- df %>%
+  mutate(ResidencyCategory = ifelse(CaregiverResidencyDuration < 120, 'Below 120', '120 or Above'))
+
+# Group by ResidencyCategory and calculate the mean of Partners_count
+residency_partner_mean <- df %>%
+  group_by(ResidencyCategory) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create the bar plot
+ggplot(residency_partner_mean, aes(x = ResidencyCategory, y = mean_partners, fill = ResidencyCategory)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Partners Count by Caregiver Residency Duration",
+       x = "Caregiver Residency Duration",
+       y = "Mean Partners Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Below 120" = "lightblue", "120 or Above" = "lightgreen"))
+
+
+
+```
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+# Load the dataset
+df <- read.csv("Individual-level basic variable.csv")
+
+# Ensure necessary columns are numeric
+df$Partners_count <- as.numeric(df$Partners_count)
+df$CaregiverResidencyDuration <- as.numeric(df$CaregiverResidencyDuration)
+df$Age <- as.numeric(df$Age)
+
+# Create a new variable for CaregiverResidencyDuration categories with specified order
+df <- df %>%
+  mutate(ResidencyCategory = factor(ifelse(CaregiverResidencyDuration < 120, 'Below 120', '120 or Above'),
+                                    levels = c('Below 120', '120 or Above')))
+
+# Create a new variable for puberty status with specified order
+df <- df %>%
+  mutate(Puberty_Status = factor(ifelse(Age < 12, 'Pre-pubescent', 'Post-pubescent'),
+                                 levels = c('Pre-pubescent', 'Post-pubescent')))
+
+# Group by both ResidencyCategory and Puberty_Status, and calculate the mean of Partners_count
+residency_puberty_mean <- df %>%
+  group_by(ResidencyCategory, Puberty_Status) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create the bar plot with desired order
+ggplot(residency_puberty_mean, aes(x = ResidencyCategory, y = mean_partners, fill = Puberty_Status)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Mean Partners Count by Residency Duration and Puberty Status",
+       x = "Caregiver Residency Duration",
+       y = "Mean Partners Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Pre-pubescent" = "lightblue", "Post-pubescent" = "lightgreen"))
+
+
+```
+
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+# Load the dataset
+df <- read.csv("Individual-level basic variable.csv")
+
+# Ensure necessary columns are numeric
+df$Partners_count <- as.numeric(df$Partners_count)
+df$CaregiverResidencyDuration <- as.numeric(df$CaregiverResidencyDuration)
+df$Age <- as.numeric(df$Age)
+
+# Create a new variable for CaregiverResidencyDuration categories with specified order
+df <- df %>%
+  mutate(ResidencyCategory = factor(ifelse(CaregiverResidencyDuration < 120, 'Below 120', '120 or Above'),
+                                    levels = c('Below 120', '120 or Above')))
+
+# Group by both ResidencyCategory and Age, and calculate the mean of Partners_count
+residency_age_mean <- df %>%
+  group_by(ResidencyCategory, Age) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create the bar plot
+ggplot(residency_age_mean, aes(x = factor(Age), y = mean_partners, fill = ResidencyCategory)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Mean Partners Count by Residency Duration and Age",
+       x = "Age",
+       y = "Mean Partners Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Below 120" = "lightblue", "120 or Above" = "lightgreen"))
+
+```
+
+Partner-level
+```{r}
+partner_data <- read.csv("Partner-level basic variables.csv")
+partner_data$Partner_age <- as.numeric(partner_data$Partner_age)
+
+# Distribution of partner ages
+hist(partner_data$Partner_age, main="Distribution of Playmates' Ages", xlab="Age", col="lightblue")
+
+# Distribution of partner sex
+table(partner_data$Partner_sex)
+barplot(table(partner_data$Partner_sex), main="Distribution of Playmates by Sex", col=c("lightblue", "pink"))
+
+```
+```{r}
+# Load necessary packages
+library(dplyr)
+
+# Load the individual and partner-level datasets
+individual_data <- read.csv("Individual-level basic variable.csv")
+partner_data <- read.csv("Partner-level basic variables.csv")
+
+# Merge the individual and partner datasets on the 'ID' column
+merged_data <- partner_data %>%
+  left_join(individual_data %>% select(ID, Age), by = "ID")
+
+# Save the merged dataset to a new CSV file
+write.csv(merged_data, "Partner-level_with_individual_age.csv", row.names = FALSE)
+
+# View the merged data (optional)
+head(merged_data)
+
+
+```
+```{r}
+# Load necessary packages
+library(dplyr)
+library(ggplot2)
+
+# Load the merged dataset (which includes the age of individuals)
+merged_data <- read.csv("Partner-level_with_individual_age.csv")
+
+# Convert Partner_age and Age.y columns to numeric, forcing non-numeric values to NA
+merged_data$Partner_age <- as.numeric(merged_data$Partner_age)
+merged_data$Age.y <- as.numeric(merged_data$Age.y)
+
+# Remove rows with NA values in either Partner_age or Age.y
+cleaned_data <- merged_data %>%
+  filter(!is.na(Partner_age) & !is.na(Age.y))
+
+# Calculate the age difference between the individual and their partners
+cleaned_data <- cleaned_data %>%
+  mutate(Age_Difference = abs(Age.y - Partner_age))
+
+# Create a histogram of the age differences
+ggplot(cleaned_data, aes(x = Age_Difference)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Age Differences between Individual and Playmates",
+       x = "Age Difference (Years)",
+       y = "Frequency") +
+  theme_minimal()
+
+write.csv(cleaned_data, "Cleaned_Partner_level_with_age_difference.csv", row.names = FALSE)
+
+```
+
+```{r}
+age_difference_summary <- cleaned_data %>%
+  group_by(Age.y) %>%
+  summarise(Mean_Age_Difference = mean(Age_Difference, na.rm = TRUE))
+
+# Print the summary
+print(age_difference_summary)
+
+# Create a bar chart of the mean age difference by age of the interviewed participant
+ggplot(age_difference_summary, aes(x = Age.y, y = Mean_Age_Difference)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Mean Age Difference by Age of Interviewed Participant",
+       x = "Age of Interviewed Participant",
+       y = "Mean Age Difference (Years)") +
+  theme_minimal()
+
+
+```
+```{r}
 
 ```
