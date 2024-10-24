@@ -73,11 +73,15 @@ data$Sex <- as.factor(data$Sex)  # Make sure Sex is a factor (M/F)
 # Group by Age and Sex, then calculate the mean of Partners_count
 age_sex_partner_mean <- data %>%
   group_by(Age, Sex) %>%
-  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE), .groups = "drop")
+
+# Ensure all combinations of Age and Sex are present, even if no data exists
+age_sex_full <- age_sex_partner_mean %>%
+  tidyr::complete(Age, Sex, fill = list(mean_partners = NA))
 
 # Create a bar plot with divided bars for Males and Females
-ggplot(age_sex_partner_mean, aes(x = Age, y = mean_partners, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
+ggplot(age_sex_full, aes(x = Age, y = mean_partners, fill = Sex)) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = FALSE) +
   labs(title = "Mean Partners Count by Age and Sex", 
        x = "Age", 
        y = "Mean Partners Count", 
@@ -259,12 +263,15 @@ data$Partners_count <- as.numeric(data$Partners_count)
 data <- data %>%
   mutate(Puberty_Status = ifelse(Age < 12, "Pre-pubescent", "Post-pubescent"))
 
+# Set the factor levels to ensure the desired order
+data$Puberty_Status <- factor(data$Puberty_Status, levels = c("Pre-pubescent", "Post-pubescent"))
+
 # Group by Puberty_Status and calculate the mean of Partners_count
 puberty_partner_mean <- data %>%
   group_by(Puberty_Status) %>%
   summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
 
-# Create a bar plot
+# Create a bar plot with the specified order
 ggplot(puberty_partner_mean, aes(x = Puberty_Status, y = mean_partners, fill = Puberty_Status)) +
   geom_bar(stat = "identity") +
   labs(title = "Mean Partners Count by Puberty Status", 
@@ -272,6 +279,7 @@ ggplot(puberty_partner_mean, aes(x = Puberty_Status, y = mean_partners, fill = P
        y = "Mean Partners Count") +
   theme_minimal() +
   scale_fill_manual(values = c("Pre-pubescent" = "lightblue", "Post-pubescent" = "lightgreen"))
+
 ```
 
 ```{r}
@@ -328,6 +336,27 @@ ggplot(data, aes(x = Age, y = Partners_count)) +
   theme_minimal()
 
 ```
+```{r} 
+library(tidyverse)
+
+# Load the dataset
+df <- read.csv("Individual-level basic variable.csv")
+
+# Ensure CaregiverResidencyDuration is numeric
+df$CaregiverResidencyDuration <- as.numeric(df$CaregiverResidencyDuration)
+
+# Get the summary of CaregiverResidencyDuration
+summary_residency_duration <- summary(df$CaregiverResidencyDuration)
+
+# Print the summary
+print(summary_residency_duration)
+# Calculate the mean of CaregiverResidencyDuration
+mean_residency_duration <- mean(df$CaregiverResidencyDuration, na.rm = TRUE)
+
+# Print the mean
+print(mean_residency_duration)
+
+```
 
 ```{r}
 # Load necessary libraries
@@ -342,23 +371,24 @@ df$CaregiverResidencyDuration <- as.numeric(df$CaregiverResidencyDuration)
 
 # Create a new variable for CaregiverResidencyDuration categories
 df <- df %>%
-  mutate(ResidencyCategory = ifelse(CaregiverResidencyDuration < 120, 'Below 120', '120 or Above'))
+  mutate(ResidencyCategory = ifelse(CaregiverResidencyDuration < 120, 'Below 120 months', '120 months or Above'))
+
+# Set the factor levels to ensure the desired order
+df$ResidencyCategory <- factor(df$ResidencyCategory, levels = c("Below 120 months", "120 months or Above"))
 
 # Group by ResidencyCategory and calculate the mean of Partners_count
 residency_partner_mean <- df %>%
   group_by(ResidencyCategory) %>%
   summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
 
-# Create the bar plot
+# Create the bar plot with the specified order
 ggplot(residency_partner_mean, aes(x = ResidencyCategory, y = mean_partners, fill = ResidencyCategory)) +
   geom_bar(stat = "identity") +
   labs(title = "Mean Partners Count by Caregiver Residency Duration",
        x = "Caregiver Residency Duration",
        y = "Mean Partners Count") +
   theme_minimal() +
-  scale_fill_manual(values = c("Below 120" = "lightblue", "120 or Above" = "lightgreen"))
-
-
+  scale_fill_manual(values = c("Below 120 months" = "lightblue", "120 months or Above" = "lightgreen"))
 
 ```
 ```{r}
@@ -517,6 +547,20 @@ ggplot(age_difference_summary, aes(x = Age.y, y = Mean_Age_Difference)) +
 
 
 ```
+
 ```{r}
+# Load necessary library
+library(ggplot2)
+unique(df$Sex)
+
+
+df <- read.csv("Individual-level basic variable.csv")
+
+# Create a boxplot for gender (Sex) and number of playmates (Partners_count)
+ggplot(df, aes(x = as.factor(Sex), y = Partners_count, fill = as.factor(Sex))) + 
+  geom_boxplot() +
+  scale_fill_manual(values = c("M" = "lightblue", "F" = "lightpink")) + 
+  labs(x = "Gender", y = "Number of Playmates", fill = "Gender") +
+  theme_minimal()
 
 ```
