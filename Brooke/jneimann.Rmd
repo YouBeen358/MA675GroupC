@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
+library(dplyr)
 ```
 
 
@@ -18,13 +19,80 @@ mean(playmates$Partners_count)
 ```
 
 ```{r}
-///////////////////;//////////////;//////;avg_partner_count <- aggregate(Partners_count ~ Age, data = playmates, FUN = mean)
+avg_partner_count <- aggregate(Partners_count ~ Age, data = playmates, FUN = mean)
 ggplot(avg_partner_count, aes(x = Age, y = Partners_count)) +
   geom_line() +
   geom_point() +
   labs(title = "Average Partner Count by Age",
        x = "Age",
        y = "Average Partner Count") +
+  theme_minimal()
+```
+```{r}
+playmates <- playmates %>%
+  mutate(AverageAgeDifference = -AverageAgeDifference)
+```
+
+
+```{r}
+
+mean_age_diff <- playmates %>%
+  group_by(Sex) %>%
+  summarize(mean_diff = abs(mean(AverageAgeDifference, na.rm = TRUE)))
+
+# Create the bar plot
+ggplot(mean_age_diff, aes(x = Sex, y = mean_diff, fill = Sex)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Average Age Difference by Sex",
+       x = "Sex",
+       y = "Mean Average Age Difference") +
+  theme_minimal()
+```
+```{r}
+playmates_12 <- playmates %>%
+  mutate(AgeCategory = ifelse(Age < 12, "Under 12", "Over 12"))
+```
+
+```{r}
+mean_age_diff <- playmates_12 %>%
+  group_by(AgeCategory, Sex) %>%
+  summarize(mean_diff = mean(AverageAgeDifference, na.rm = TRUE), .groups = 'drop')
+
+ggplot(mean_age_diff, aes(x = AgeCategory, y = mean_diff, fill = Sex)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Mean Average Age Difference by Age Category and Sex",
+       x = "Age Category",
+       y = "Mean Average Age Difference") +
+  theme_minimal()
+```
+Subject 909 aveage difference is -11 and should be +1.3333. Also data is flipped with negative avg age differences are actually positive and vice versa
+```{r}
+mean_prop <- playmates_12 %>%
+  group_by(AgeCategory, Sex) %>%
+  summarize(mean_prop = mean(Prop_same_sex_noadult, na.rm = TRUE), .groups = 'drop')
+
+ggplot(mean_prop, aes(x = AgeCategory, y = mean_prop, fill = Sex)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Mean Prop Same Sex Nonadult by Age Category and Sex",
+       x = "Age Category",
+       y = "Mean Prop Same Sex Nonadult") +
+  theme_minimal()
+```
+```{r}
+playmates_imm <- playmates %>%
+  mutate(ResidencyCategory = ifelse(CaregiverResidencyDuration < 120, "Less than 120", "Over 120"))
+```
+
+```{r}
+mean_partners_imm <- playmates_imm %>%
+  group_by(ResidencyCategory) %>%
+  summarize(mean_partners_imm = mean(Partners_count, na.rm = TRUE), .groups = 'drop')
+
+ggplot(mean_partners_imm, aes(x = ResidencyCategory, y = mean_partners_imm, fill = ResidencyCategory)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Partners Count by Caregiver Residency Duration",
+       x = "Caregiver Residency Duration",
+       y = "Mean Partners Count") +
   theme_minimal()
 ```
 
