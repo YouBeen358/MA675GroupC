@@ -15,6 +15,13 @@ library(dplyr)
 ```{r}
 playmates = read.csv("Individual-level with calculate.csv")
 
+library(readr)
+partner_new_age <- read_csv("Brooke/Brooke Rothamer All Excel Pages with Keys.xlsx - Individual-level with calculate.csv")
+partner_new_age <- partner_new_age %>%
+    left_join(dplyr::select(playmates, ID, Sex), by = "ID")
+
+
+partner_new_age <- merge(x = partner_new_age, y = playmates[, c(3)], by = "ID", all.x = TRUE)
 mean(playmates$Partners_count)
 ```
 
@@ -69,13 +76,14 @@ Subject 909 aveage difference is -11 and should be +1.3333. Also data is flipped
 ```{r}
 mean_prop <- playmates_12 %>%
   group_by(AgeCategory, Sex) %>%
-  summarize(mean_prop = mean(Prop_same_sex_noadult, na.rm = TRUE), .groups = 'drop')
+  summarize(mean_prop = mean(Prop_same_sex_noadult, na.rm = TRUE), .groups = 'drop') %>%
+  arrange(desc(AgeCategory))
 
 ggplot(mean_prop, aes(x = AgeCategory, y = mean_prop, fill = Sex)) +
   geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Mean Prop Same Sex Nonadult by Age Category and Sex",
-       x = "Age Category",
-       y = "Mean Prop Same Sex Nonadult") +
+  scale_x_discrete(limits = rev(levels(factor(mean_prop$AgeCategory)))) +
+  labs(x = "Age Category",
+       y = "Prop Same Sex Nonadult") +
   theme_minimal()
 ```
 ```{r}
@@ -94,5 +102,100 @@ ggplot(mean_partners_imm, aes(x = ResidencyCategory, y = mean_partners_imm, fill
        x = "Caregiver Residency Duration",
        y = "Mean Partners Count") +
   theme_minimal()
+```
+
+```{r}
+
+Partner$Partner_age <- as.numeric(as.character(Partner$Partner_age))
+
+ggplot(Partner, aes(x = factor(Age), y = Partner_age, group = Age)) +
+  geom_boxplot(fill = "skyblue", color = "darkblue", alpha = 0.7, outlier.color = "red", outlier.shape = 16) +
+  labs(x = "Child Age", y = "Playmate Age", title = "Distribution of Playmate Ages by Child Age") +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80"),
+    panel.grid.minor = element_blank()
+  ) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2))
+```
+
+
+
+```{r}
+ggplot(Partner, aes(x = factor(Age), fill = Related)) +
+  geom_bar(position = "fill") +
+  labs(x = "Child Age", y = "Proportion", fill = "Related", title = "Proportion of Related vs. Not Related Playmates by Child Age") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "top"
+  )
+```
+
+
+```{r}
+ggplot(Partner, aes(x = factor(Age), fill = Related)) +
+  geom_bar(position = "fill") +
+  labs(x = "Child Age", y = "Proportion", fill = "Related", title = "Proportion of Related vs. Not Related Playmates by Child Age") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "top"
+  )
+```
+
+
+
+```{r}
+Partner$Age_Group <- ifelse(Partner$Age < 12, "Under 12", "12 and Over")
+
+# Create the stacked bar plot with two bars
+ggplot(Partner, aes(x = Age_Group, fill = Related)) +
+  geom_bar(position = "fill") +
+  labs(x = "Age Group", y = "Proportion", fill = "Related", title = "Proportion of Related vs. Not Related Playmates by Age Group") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "top"
+  )
+```
+
+```{r}
+ggplot(Partner, aes(x = factor(Age), fill = AtCamp)) +
+  geom_bar(position = "fill") +
+  labs(x = "Child Age", y = "Proportion", fill = "AtCamp", title = "Proportion of Playmates at Camp") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "top"
+  )
+```
+Contigency Tavle with age and number of palymates 
+```{r}
+contingency_table <- table(partner_new_age$StatedAge, partner_new_age$Partners_count)
+
+# Displaying the contingency table
+print(contingency_table)
+```
+make binary variables 
+```{r}
+partner_new_age$CaregiverImmigrate <- ifelse(partner_new_age$CaregiverImmigrate == "Yes", 1, 0)
+
+
 ```
 
