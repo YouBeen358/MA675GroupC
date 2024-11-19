@@ -564,3 +564,291 @@ ggplot(df, aes(x = as.factor(Sex), y = Partners_count, fill = as.factor(Sex))) +
   theme_minimal()
 
 ```
+
+
+```{r}
+# Filter out the 16-year-old girl
+data <- subset(data, !(Age == 16 & Sex == "F"))
+
+# Check the updated dataset
+head(data)
+
+
+# Load necessary libraries
+library(data.table)
+library(MASS)
+
+# Load the dataset
+data <- fread("Individual-level basic variable.csv")
+
+# Convert categorical variables to factors
+data[, Sex := as.factor(Sex)]
+data[, CaregiverImmigrate := as.factor(CaregiverImmigrate)]
+data[, UserLanguage := as.factor(UserLanguage)]
+
+# Fit the Poisson regression model
+poisson_model <- glm(
+  Partners_count ~ Age+ Sex + CaregiverImmigrate + CaregiverResidencyDuration + 
+    Sex:CaregiverImmigrate,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
+
+# Assess model fit (optional)
+library(AER)
+dispersiontest(poisson_model)
+
+
+
+
+```
+
+### Q. How does immigration impact the number of playmates
+#Overview of the most basic model
+```{r}
+
+# Fit the Poisson regression model
+poisson_model <- glm(
+  Partners_count ~ Age+ Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
+    Sex:CaregiverImmigrate,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
+
+# Assess model fit (optional)
+library(AER)
+dispersiontest(poisson_model)
+
+
+
+```
+
+#Adding proportion of related and unrelated.
+```{r}
+# Compute the ratio
+data$Unrelated_to_Related <- with(data, ifelse(Count_related == 0, NA, Count_unrelated / Count_related))
+
+# Check for missing values due to division by zero
+summary(data$Unrelated_to_Related)
+
+# Update the Poisson regression model
+poisson_model_updated <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration +
+    UserLanguage + Sex:CaregiverImmigrate + Unrelated_to_Related,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summary of the updated model
+summary(poisson_model_updated)
+
+# Check for overdispersion in the updated model
+library(AER)
+dispersiontest(poisson_model_updated)
+
+
+
+```
+
+# Only aadding the essential ones(significant)
+```{r}
+
+# Compute the ratio
+data$Unrelated_to_Related <- with(data, ifelse(Count_related == 0, NA, Count_unrelated / Count_related))
+
+# Check for missing values due to division by zero
+summary(data$Unrelated_to_Related)
+
+# Update the Poisson regression model
+poisson_model_updated <- glm(
+  Partners_count ~ Age + Sex + CaregiverResidencyDuration + Unrelated_to_Related,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summary of the updated model
+summary(poisson_model_updated)
+
+# Check for overdispersion in the updated model
+library(AER)
+dispersiontest(poisson_model_updated)
+
+
+```
+
+# Adding Count_unrelated_noadult
+
+```{r}
+
+# Group age into pre-pubescent (0–11) and post-pubescent (12+)
+data$AgeGroup <- ifelse(data$Age <= 11, "Pre-pubescent", "Post-pubescent")
+
+# Convert the new variable to a factor for modeling
+data$AgeGroup <- factor(data$AgeGroup, levels = c("Pre-pubescent", "Post-pubescent"))
+
+# Update the Poisson regression model with AgeGroup
+poisson_model_updated <- glm(
+  Partners_count ~ AgeGroup + Sex + CaregiverResidencyDuration + Unrelated_to_Related + 
+    Count_unrelated_noadult + Sex:Count_unrelated_noadult,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summary of the updated model
+summary(poisson_model_updated)
+
+# Check for overdispersion in the updated model
+library(AER)
+dispersiontest(poisson_model_updated)
+
+```
+
+```{r}
+library(MASS)
+nb_model <- glm.nb(Partners_count ~ Age + Sex + CaregiverResidencyDuration + Unrelated_to_Related + Count_unrelated_noadult + Sex:Count_unrelated_noadult, data = data)
+summary(nb_model)
+
+
+```
+```{r}
+data$Count_unrelated_noadult <- scale(data$Count_unrelated_noadult)
+data$Unrelated_to_Related <- scale(data$Unrelated_to_Related)
+data$Sex <- relevel(factor(data$Sex), ref = "F")
+
+# Update the model using a quasi-Poisson family
+quasi_poisson_model <- glm(
+  Partners_count ~ AgeGroup + Sex + CaregiverImmigrate + Unrelated_to_Related + 
+    Count_unrelated_noadult ,
+  family = quasipoisson(link = "log"),
+  data = data
+)
+
+# Summary of the quasi-Poisson model
+summary(quasi_poisson_model)
+
+# Compare AIC-like metric (quasi-Poisson doesn't have true AIC, but deviance can be used for comparison)
+anova(quasi_poisson_model, test = "Chisq")
+
+
+# Calculate the dispersion parameter manually
+dispersion <- sum(residuals(quasi_poisson_model, type = "pearson")^2) / quasi_poisson_model$df.residual
+dispersion
+
+```
+
+```{r}
+# Create a new variable for categorized Caregiver Immigration Year
+data$CaregiverImmigrateYearCategory <- ifelse(
+  data$CaregiverImmigrateYear < 2013, 
+  "Before 2013", 
+  "2013 or more recent"
+)
+
+# Ensure it's a factor with meaningful levels
+data$CaregiverImmigrateYearCategory <- factor(
+  data$CaregiverImmigrateYearCategory,
+  levels = c("Before 2013", "2013 or more recent")
+)
+
+# Fit the updated quasi-Poisson model
+quasi_poisson_model_releveled <- glm(
+  Partners_count ~ AgeGroup + Sex + CaregiverImmigrateYearCategory + 
+    Unrelated_to_Related + Sex:Count_unrelated_noadult ,
+  family = quasipoisson(link = "log"),
+  data = data
+)
+
+# Summary of the model
+summary(quasi_poisson_model_releveled)
+
+
+```
+
+
+
+```{r}
+library(splines)
+quasi_poisson_model_nonlinear <- glm(
+  Partners_count ~ bs(CaregiverResidencyDuration, df = 3) + Sex + AgeGroup + 
+    Unrelated_to_Related + Count_unrelated_noadult,
+  family = quasipoisson(link = "log"),
+  data = data
+)
+summary(quasi_poisson_model_nonlinear)
+
+
+
+```
+
+```{r}
+
+library(MASS)
+nb_model <- glm.nb(Partners_count ~ Sex + CaregiverImmigrate + CaregiverResidencyDuration + 
+                     UserLanguage + Sex:CaregiverImmigrate, data = data)
+summary(nb_model)
+
+```
+
+```{r}
+
+# Categorize Partner Count into "0-4" and "5+"
+data$PartnerCountCategory <- ifelse(data$Partners_count <= 4, "0-4", "5+")
+
+
+# Ensure ImmigrationCategory is created properly
+data$ImmigrationCategory <- ifelse(
+  data$CaregiverImmigrate == "Yes" & !is.na(data$CaregiverImmigrateYear) & data$CaregiverImmigrateYear <= 2013, 
+  "Immigrated Before 2013",
+  ifelse(
+    data$CaregiverImmigrate == "Yes" & !is.na(data$CaregiverImmigrateYear) & data$CaregiverImmigrateYear > 2013, 
+    "Immigrated After 2013",
+    NA # Exclude other cases
+  )
+)
+
+# Filter to include only immigrated caregivers with valid categories
+immigrated_data <- subset(data, !is.na(ImmigrationCategory) & !is.na(PartnerCountCategory))
+
+# Create the contingency table
+contingency_table_immigrated <- table(immigrated_data$ImmigrationCategory, immigrated_data$PartnerCountCategory)
+
+# Perform the Chi-Squared test
+chi_squared_test_immigrated <- chisq.test(contingency_table_immigrated)
+
+# View the results
+print(contingency_table_immigrated)
+print(chi_squared_test_immigrated)
+
+# Categorize immigration status
+data$ImmigrationCategory <- ifelse(
+  data$CaregiverImmigrate == "No", "No Immigration",
+  ifelse(
+    data$CaregiverImmigrate == "Yes" & data$CaregiverImmigrateYear <= 2013, "Immigrated Before 2013",
+    ifelse(
+      data$CaregiverImmigrate == "Yes" & data$CaregiverImmigrateYear > 2013, "Immigrated After 2013",
+      NA # Handle missing or unexpected cases
+    )
+  )
+)
+
+# Check the new ImmigrationCategory
+table(data$ImmigrationCategory)
+
+# Update the contingency table for ImmigrationCategory and PartnerCountCategory
+contingency_table_updated <- table(data$ImmigrationCategory, data$PartnerCountCategory)
+
+# Perform the Chi-Squared test on the updated table
+chi_squared_test_updated <- chisq.test(contingency_table_updated)
+
+# View the results
+print(contingency_table_updated)
+print(chi_squared_test_updated)
+
+
+```
