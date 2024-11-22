@@ -1,0 +1,54 @@
+---
+title: "Poisson Modeling"
+author: "You Been PArk"
+date: "2024-11-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load necessary libraries
+library(data.table)
+library(MASS)
+
+# Load the dataset
+data <- fread("Individual-level basic variable.csv")
+
+# Filter out the 16-year-old girl
+data <- subset(data, !(Age == 16 & Sex == "F"))
+
+# Remove rows with NA values in variables used in the model
+data <- data %>%
+  filter(
+    !is.na(Partners_count) &
+    !is.na(Age) &
+    !is.na(Sex) &
+    !is.na(CaregiverImmigrate) &
+    !is.na(CaregiverResidencyDuration)
+  )
+
+
+# Convert categorical variables to factors
+data[, Sex := as.factor(Sex)]
+data[, CaregiverImmigrate := as.factor(CaregiverImmigrate)]
+data[, UserLanguage := as.factor(UserLanguage)]
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

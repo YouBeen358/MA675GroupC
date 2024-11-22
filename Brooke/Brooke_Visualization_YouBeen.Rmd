@@ -390,6 +390,18 @@ ggplot(residency_partner_mean, aes(x = ResidencyCategory, y = mean_partners, fil
   theme_minimal() +
   scale_fill_manual(values = c("Below 120 months" = "lightblue", "120 months or Above" = "lightgreen"))
 
+ggplot(df, aes(x = CaregiverResidencyDuration, y = Partners_count)) +
+  geom_point(color = "blue", size = 3, alpha = 0.6) +  # Scatter points
+  geom_smooth(method = "lm", color = "red", se = FALSE) +  # Linear trend line
+  labs(
+    title = "Partners Count by Caregiver Residency Duration",
+    x = "Caregiver Residency Duration (months)",
+    y = "Partners Count"
+  ) +
+  theme_minimal()
+
+
+
 ```
 ```{r}
 # Load necessary libraries
@@ -570,6 +582,17 @@ ggplot(df, aes(x = as.factor(Sex), y = Partners_count, fill = as.factor(Sex))) +
 # Filter out the 16-year-old girl
 data <- subset(data, !(Age == 16 & Sex == "F"))
 
+# Remove rows with NA values in variables used in the model
+data <- data %>%
+  filter(
+    !is.na(Partners_count) &
+    !is.na(Age) &
+    !is.na(Sex) &
+    !is.na(CaregiverImmigrate) &
+    !is.na(CaregiverResidencyDuration)
+  )
+
+
 # Check the updated dataset
 head(data)
 
@@ -581,14 +604,28 @@ library(MASS)
 # Load the dataset
 data <- fread("Individual-level basic variable.csv")
 
+# Filter out the 16-year-old girl
+data <- subset(data, !(Age == 16 & Sex == "F"))
+
+# Remove rows with NA values in variables used in the model
+data <- data %>%
+  filter(
+    !is.na(Partners_count) &
+    !is.na(Age) &
+    !is.na(Sex) &
+    !is.na(CaregiverImmigrate) &
+    !is.na(CaregiverResidencyDuration)
+  )
+
+
 # Convert categorical variables to factors
 data[, Sex := as.factor(Sex)]
 data[, CaregiverImmigrate := as.factor(CaregiverImmigrate)]
 data[, UserLanguage := as.factor(UserLanguage)]
 
-# Fit the Poisson regression model
+# Fit the Poisson regression model after cleaning
 poisson_model <- glm(
-  Partners_count ~ Age+ Sex + CaregiverImmigrate + CaregiverResidencyDuration + 
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + 
     Sex:CaregiverImmigrate,
   family = poisson(link = "log"),
   data = data
@@ -596,6 +633,24 @@ poisson_model <- glm(
 
 # Summarize the model
 summary(poisson_model)
+
+# Add residuals and predicted values to the dataset
+data$Residuals <- residuals(poisson_model, type = "response")  # Response residuals
+data$Fitted_Values <- fitted(poisson_model)  # Predicted values
+
+# Load ggplot2 for visualization
+library(ggplot2)
+
+# Plot residuals vs fitted values
+ggplot(data, aes(x = Fitted_Values, y = Residuals)) +
+  geom_point(alpha = 0.6, color = "blue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted Values (Predicted Partners Count)",
+    y = "Residuals"
+  ) +
+  theme_minimal()
 
 # Assess model fit (optional)
 library(AER)
@@ -626,10 +681,14 @@ summary(quasi_poisson_model)
 ### Q. How does immigration impact the number of playmates
 #Overview of the most basic model
 ```{r}
+
+library(dplyr)
+
+
 ##THISSSS ONESSSS
 # Fit the Poisson regression model
 poisson_model <- glm(
-  Partners_count ~ Age+ Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
     Sex:CaregiverImmigrate,
   family = poisson(link = "log"),
   data = data
@@ -637,6 +696,44 @@ poisson_model <- glm(
 
 # Summarize the model
 summary(poisson_model)
+
+# Add residuals and predicted values to the dataset
+data$Residuals <- residuals(poisson_model, type = "response")  # Response residuals
+data$Fitted_Values <- fitted(poisson_model)  # Predicted values
+
+# Load ggplot2 for visualization
+library(ggplot2)
+
+# Plot residuals vs fitted values
+ggplot(data, aes(x = Fitted_Values, y = Residuals)) +
+  geom_point(alpha = 0.6, color = "blue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted Values (Predicted Partners Count)",
+    y = "Residuals"
+  ) +
+  theme_minimal()
+
+# Check column names
+names(data)
+
+# Ensure columns are numeric
+data$Partners_count <- as.numeric(data$Partners_count)
+data$Age <- as.numeric(data$Age)
+data$CaregiverResidencyDuration <- as.numeric(data$CaregiverResidencyDuration)
+
+# Subset numeric variables
+num_vars <- data %>%
+  dplyr::select(Partners_count, Age, CaregiverResidencyDuration)
+
+# Compute the correlation matrix
+cor_matrix <- cor(num_vars, use = "complete.obs")
+
+# Visualize the heatmap
+library(ggcorrplot)
+ggcorrplot(cor_matrix, lab = TRUE, hc.order = TRUE, colors = c("blue", "white", "red"))
+
 
 ```
 
