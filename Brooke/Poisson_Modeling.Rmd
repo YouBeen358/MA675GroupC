@@ -12,7 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 # Load necessary libraries
 library(data.table)
-library(MASS)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(AER)
 
 # Load the dataset
 data <- fread("Individual-level basic variable.csv")
@@ -38,17 +41,90 @@ data[, UserLanguage := as.factor(UserLanguage)]
 ```
 
 ```{r}
+# Fit the Poisson regression model
+poisson_model <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
+    Sex:CaregiverImmigrate,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
+dispersiontest(poisson_model)
+
+# Ensure columns are numeric
+data$Partners_count <- as.numeric(data$Partners_count)
+data$Age <- as.numeric(data$Age)
+data$CaregiverResidencyDuration <- as.numeric(data$CaregiverResidencyDuration)
+
+# Subset numeric variables
+num_vars <- data %>%
+  dplyr::select(Partners_count, Age, CaregiverResidencyDuration)
+
+# Compute the correlation matrix
+cor_matrix <- cor(num_vars, use = "complete.obs")
+
+# Visualize the heatmap
+library(ggcorrplot)
+ggcorrplot(cor_matrix, lab = TRUE, hc.order = TRUE, colors = c("blue", "white", "red"))
+```
+
+```{r}
+poisson_model <- glm(
+  Partners_count ~ Age + Sex,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
 
 ```
 
 ```{r}
+poisson_model <- glm(
+  Partners_count ~ Age + Sex + CaregiverResidencyDuration,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
+
 
 ```
 
 ```{r}
+poisson_model <- glm(
+  Partners_count ~ Age + Sex + CaregiverResidencyDuration + UserLanguage,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
 
 ```
 
 ```{r}
+poisson_model <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration +
+    Sex:CaregiverImmigrate,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Summarize the model
+summary(poisson_model)
+
+dispersiontest(poisson_model)
+```
+
+```{r}
+library(MASS)
+nb_model <- glm.nb(Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration +
+    Sex:CaregiverImmigrate, data = data)
+summary(nb_model)
 
 ```

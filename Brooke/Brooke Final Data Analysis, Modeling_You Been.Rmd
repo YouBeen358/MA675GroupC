@@ -1,0 +1,20 @@
+---
+title: "Brooke Final Data Analysis, Modeling_You Been"
+author: "You Been PArk"
+date: "2024-11-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+```
+
+
+```{r}
+
+
+```
