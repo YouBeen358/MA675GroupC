@@ -80,3 +80,178 @@ ggplot(age_sex_full, aes(x = Age, y = mean_partners, fill = Sex)) +
 ```
 As shown in the graph, there are more playmates for male than female except for 9 years old. While we do not have the data for 6 year old female and 17 year old male, we can see that male does have more playmates than that of female. 
 
+We then divide the ages into two groups of Pre-pubescent and Post-pubescent which are below and above 12. . 
+
+```{r}
+
+# Group by Puberty_Status and calculate the mean of Partners_count
+puberty_partner_mean <- data %>%
+  group_by(Puberty_Status) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create a bar plot with the specified order
+ggplot(puberty_partner_mean, aes(x = Puberty_Status, y = mean_partners, fill = Puberty_Status)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Partners Count by Puberty Status", 
+       x = "Puberty Status", 
+       y = "Mean Partners Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Pre-pubescent" = "lightblue", "Post-pubescent" = "lightgreen"))
+
+```
+Generally, there are a bigger mean partners count for post-pubescent than pre-pubescent meaning that there is an increase in networks when they are older than 12. 
+
+```{r}
+pre_pubescent_data <- data %>% filter(Puberty_Status == "Pre-pubescent")
+post_pubescent_data <- data %>% filter(Puberty_Status == "Post-pubescent")
+
+# Group by Age and calculate the mean of Partners_count for both groups
+pre_pubescent_mean <- pre_pubescent_data %>%
+  group_by(Age) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+post_pubescent_mean <- post_pubescent_data %>%
+  group_by(Age) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create the bar plots for both groups
+
+# Pre-pubescent plot
+pre_plot <- ggplot(pre_pubescent_mean, aes(x = Age, y = mean_partners)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  labs(title = "Mean Partners Count by Age (Pre-pubescent)", 
+       x = "Age", 
+       y = "Mean Partners Count") +
+  theme_minimal() +
+  ylim(0, 6)
+
+# Post-pubescent plot
+post_plot <- ggplot(post_pubescent_mean, aes(x = Age, y = mean_partners)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  labs(title = "Mean Partners Count by Age (Post-pubescent)", 
+       x = "Age", 
+       y = "Mean Partners Count") +
+  theme_minimal()
+
+# Print the plots
+print(pre_plot)
+print(post_plot)
+
+
+```
+
+Now, let us look at the caregiver's residency duration and how that could impact the number of playmates. 
+We decided to split the dataset into people who have not immigrated, people who have immigrated in the last 10 years, and people who have immigrated more than 10 years ago. Since the CaregiverResidencyDuration show the immigration duration in months, we split the data between below 120 and 120 or above. 
+
+```{r}
+# Ensure Partners_count and CaregiverResidencyDuration are numeric
+df$Partners_count <- as.numeric(df$Partners_count)
+df$CaregiverResidencyDuration <- as.numeric(df$CaregiverResidencyDuration)
+
+# Create a new variable for CaregiverResidencyDuration categories
+df <- df %>%
+  mutate(ResidencyCategory = ifelse(CaregiverResidencyDuration < 120, 'Below 120 months', '120 months or Above'))
+
+# Set the factor levels to ensure the desired order
+df$ResidencyCategory <- factor(df$ResidencyCategory, levels = c("Below 120 months", "120 months or Above"))
+
+# Group by ResidencyCategory and calculate the mean of Partners_count
+residency_partner_mean <- df %>%
+  group_by(ResidencyCategory) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create the bar plot with the specified order
+ggplot(residency_partner_mean, aes(x = ResidencyCategory, y = mean_partners, fill = ResidencyCategory)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Partners Count by Caregiver Residency Duration",
+       x = "Caregiver Residency Duration",
+       y = "Mean Partners Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Below 120 months" = "lightblue", "120 months or Above" = "lightgreen"))
+
+```
+
+The NA values mostly represent the people who have been in this island without immigrating from another. The graph shows that the mean partners count is greatest for the people who have not immigrated, and still greater for a family who have immigrated when their children were very young, or not born yet. 
+
+
+#Summary
+From the visualization, we have acknowledged the fact that age, gender, maturity, and immigration duration could have an impact on the partner's count. Hence, when building a model, we will be investigating these as essential variables for consideration.
+
+###Poisson Regression
+1. The question we will take a look at is "How does immigration impact the number of playmates?"
+```{r}
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(MASS)
+library(AER)
+
+# Load the dataset
+data <- fread("Individual-level basic variable.csv")
+
+# Filter out the 16-year-old girl
+data <- subset(data, !(Age == 17 & Sex == "F"))
+
+# Remove rows with NA values in variables used in the model
+data <- data %>%
+  filter(
+    !is.na(Partners_count) &
+    !is.na(Age) &
+    !is.na(Sex) &
+    !is.na(CaregiverImmigrate) &
+    !is.na(CaregiverResidencyDuration)
+  )
+
+# Convert categorical variables to factors
+data[, Sex := as.factor(Sex)]
+data[, CaregiverImmigrate := as.factor(CaregiverImmigrate)]
+data[, UserLanguage := as.factor(UserLanguage)]
+
+
+```
+We started with one of the most simple models, only including age, gender and CargiverImmigrate.
+
+```{r}
+# Fit the Poisson regression model after cleaning
+poisson_model <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate,
+  family = poisson(link = "log"),
+  data = data
+)
+
+summary(poisson_model)
+
+dispersiontest(poisson_model)
+
+install.packages("countreg")# Get a list of available packages
+av <- available.packages(filters = list())
+
+# Check if `countreg` is in the list
+av[av[, "Package"] == "countreg", ]
+
+library(countreg)
+rootogram(poisson_model, style = "hanging")
+
+
+```
+In this 
+```{r}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

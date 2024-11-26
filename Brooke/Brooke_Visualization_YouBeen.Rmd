@@ -579,23 +579,6 @@ ggplot(df, aes(x = as.factor(Sex), y = Partners_count, fill = as.factor(Sex))) +
 
 
 ```{r}
-# Filter out the 16-year-old girl
-data <- subset(data, !(Age == 16 & Sex == "F"))
-
-# Remove rows with NA values in variables used in the model
-data <- data %>%
-  filter(
-    !is.na(Partners_count) &
-    !is.na(Age) &
-    !is.na(Sex) &
-    !is.na(CaregiverImmigrate) &
-    !is.na(CaregiverResidencyDuration)
-  )
-
-
-# Check the updated dataset
-head(data)
-
 
 # Load necessary libraries
 library(data.table)
