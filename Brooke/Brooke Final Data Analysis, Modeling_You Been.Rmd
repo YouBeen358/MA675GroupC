@@ -9,12 +9,74 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+###Visualization
+We first took an attempt at the visualization to see the bigger picture of the 
+dataset provided. 
 
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+# Load the dataset
+data <- read.csv("Individual-level basic variable.csv")
+
+# Ensure Age and Partners_count are numeric
+data$Age <- as.numeric(data$Age)
+data$Partners_count <- as.numeric(data$Partners_count)
 ```
 
+To begin with, we looked into the mean number of partners by age. 
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+# Load the dataset
+data <- read.csv("Individual-level basic variable.csv")
+
+# Ensure Age and Partners_count are numeric
+data$Age <- as.numeric(data$Age)
+data$Partners_count <- as.numeric(data$Partners_count)
+
+# Group by Age and calculate the mean of Partners_count
+age_partner_mean <- data %>%
+  group_by(Age) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE))
+
+# Create a bar plot
+ggplot(age_partner_mean, aes(x = Age, y = mean_partners)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Partners Count by Age", 
+       x = "Age", 
+       y = "Mean Partners Count") +
+  theme_minimal()
+```
+With the data set given, which was an integer, the bar graph shows an increasing number of mean partner counts. So, we wanted to investigate more on age as a variable that will impact the number of partner counts.
+
+After this, we took the idea from our client Brooke, and took a look at how each gender shows difference in the number of playmates.
 
 ```{r}
+data$Sex <- as.factor(data$Sex)  # Make sure Sex is a factor (M/F)
+
+# Group by Age and Sex, then calculate the mean of Partners_count
+age_sex_partner_mean <- data %>%
+  group_by(Age, Sex) %>%
+  summarise(mean_partners = mean(Partners_count, na.rm = TRUE), .groups = "drop")
+
+# Ensure all combinations of Age and Sex are present, even if no data exists
+age_sex_full <- age_sex_partner_mean %>%
+  tidyr::complete(Age, Sex, fill = list(mean_partners = NA))
+
+# Create a bar plot with divided bars for Males and Females
+ggplot(age_sex_full, aes(x = Age, y = mean_partners, fill = Sex)) +
+  geom_bar(stat = "identity", position = "dodge", na.rm = FALSE) +
+  labs(title = "Mean Partners Count by Age and Sex", 
+       x = "Age", 
+       y = "Mean Partners Count", 
+       fill = "Sex") +
+  theme_minimal()
 
 
 ```
+As shown in the graph, there are more playmates for male than female except for 9 years old. While we do not have the data for 6 year old female and 17 year old male, we can see that male does have more playmates than that of female. 
+
