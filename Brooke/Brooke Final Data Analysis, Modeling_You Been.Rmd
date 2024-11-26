@@ -223,35 +223,218 @@ summary(poisson_model)
 
 dispersiontest(poisson_model)
 
-install.packages("countreg")# Get a list of available packages
-av <- available.packages(filters = list())
+# Observed counts
+observed_counts <- table(data$Partners_count)
 
-# Check if `countreg` is in the list
-av[av[, "Package"] == "countreg", ]
+# Predicted (Expected) counts from the model
+predicted_counts <- predict(poisson_model, type = "response")
 
-library(countreg)
-rootogram(poisson_model, style = "hanging")
+# Get unique counts from observed data
+unique_counts <- 0:max(data$Partners_count)
+
+# Compute expected counts for all unique counts
+expected_curve <- data.frame(
+  count = unique_counts,
+  expected = dpois(unique_counts, lambda = mean(predict(poisson_model, type = "response")))
+)
+
+# Add square root of expected counts for plotting
+expected_curve$sqrt_expected <- sqrt(expected_curve$expected * nrow(data))
+
+library(ggplot2)
+
+ggplot(rootogram_data, aes(x = count)) +
+  geom_bar(aes(y = sqrt_observed), stat = "identity", fill = "blue", alpha = 0.5) +
+  geom_line(data = expected_curve, aes(x = count, y = sqrt_expected), color = "red", size = 1.2) +
+  geom_segment(
+    aes(x = count, xend = count, y = sqrt_observed, yend = sqrt_expected),
+    color = "black", linetype = "dashed"
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Rootogram with Curved Expected Line",
+    x = "Count",
+    y = "Square Root of Frequency"
+  )
+
 
 
 ```
-In this 
+In this model, there is a slight over dispersion, with the value being 1.125. In a Poisson regression, the variance of the response variable is assumed to be equal to the mean. But, when the variance is greater than the mean, we say that there is an over dispersion. Then, we are expected to do some other tests to validate the poisson regression. Here, we have created a rootogram, which shows the square root of frequency for each count. The red line represents the expected frequency which is based on the poisson regression we have done above. When we compare the line of the expected frequency and the actual count from the model(shown in a bar graph), we can see that it does kind of follow the trend, but has some outliers such as 1 count and 8 count. Hence, we would like to investigate if there are any better models to see the more accurate relevance. 
+
+
+So, what I decided to do was to add the caregiver immigration duration as well. 
+
+```{r}
+poisson_model2 <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration ,
+  family = poisson(link = "log"),
+  data = data
+)
+
+summary(poisson_model2)
+
+dispersiontest(poisson_model2)
+
+# Fit the Poisson regression model
+poisson_model2 <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Model summary
+summary(poisson_model2)
+
+# Test for overdispersion
+library(AER)
+dispersiontest(poisson_model2)
+
+# Fit the Poisson regression model
+poisson_model2 <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration,
+  family = poisson(link = "log"),
+  data = data
+)
+
+# Model summary
+summary(poisson_model2)
+
+# Test for overdispersion
+library(AER)
+dispersiontest(poisson_model2)
+
+
+```
+By adding another variable, we can see that the dispersion has fallen to 1.10, but still has similar look when you consider the rootogram. The standard error, which represents how big of an error it contains considering the coefficient, is also still big, which leads to us to saying this has not improved the model as much. 
+
+One of the other things that our client Brooke has mentioned was use of language. Language is also a big factor considering the immigration status. So, we will see if this also does impact the number of playmates. Also, I have added an interaction term of user language and caregiver residency duration in order to see if the effect of caregiver residency duration on partners count depends on the value of user language. 
+```{r}
+poisson_model3 <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
+    CaregiverResidencyDuration:UserLanguage,
+  family = poisson(link = "log"),
+  data = data
+)
+
+summary(poisson_model3)
+
+dispersiontest(poisson_model3)
+
+# Observed counts
+observed_counts <- table(data$Partners_count)
+
+# Predicted (Expected) counts from the model
+predicted_counts <- predict(poisson_model3, type = "response")
+
+# Get unique counts from observed data
+unique_counts <- 0:max(data$Partners_count)
+
+# Compute expected counts using individual predicted lambdas
+expected_curve <- data.frame(
+  count = unique_counts,
+  expected = sapply(unique_counts, function(x) sum(dpois(x, lambda = predicted_counts)))
+)
+
+# Add square root of expected counts for plotting
+expected_curve$sqrt_expected <- sqrt(expected_curve$expected)
+
+# Create rootogram data with observed counts
+rootogram_data <- data.frame(
+  count = as.numeric(names(observed_counts)),
+  observed = as.numeric(observed_counts),
+  sqrt_observed = sqrt(as.numeric(observed_counts))
+)
+
+# Merge rootogram data with expected curve data
+rootogram_data <- merge(
+  rootogram_data,
+  expected_curve,
+  by = "count",
+  all.x = TRUE
+)
+
+# Plot the rootogram
+library(ggplot2)
+
+ggplot(rootogram_data, aes(x = count)) +
+  geom_bar(aes(y = sqrt_observed), stat = "identity", fill = "blue", alpha = 0.5) +
+  geom_line(aes(y = sqrt_expected), color = "red", size = 1.2) +
+  geom_segment(
+    aes(x = count, xend = count, y = sqrt_observed, yend = sqrt_expected),
+    color = "black", linetype = "dashed"
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Rootogram with Curved Expected Line",
+    x = "Count",
+    y = "Square Root of Frequency"
+  )
+
+predicted_counts_model1 <- predict(poisson_model2, type = "response")
+predicted_counts_model3 <- predict(poisson_model3, type = "response")
+
+summary(predicted_counts_model1)
+summary(predicted_counts_model3)
+
+
+```
+
+From the model summary, we see that there has been some significant improvements in the model by adding these variables. From the interaction term summary, we can see that the effect of caregiver residency duration on partners count is slightly positive for Spanish speakers. From the summary se wee that some of the variables here show significance, such as sex, user language, and the interaction term. The coeffecient estimate is significantly bigger than the standard error, which implies that the estimation made by the poisson model does not hold a big error. 
+The over dispersion rate has fallen from 1.125 to 1.055 which is closer to 1, and the AIC which is better when smaller has also decresed from 420.42 to 419.37. We have added a summary of the two models, model 1 and model 3, showing how the predicted minimum and maximum. As you can see, the maximum has grown to 8.679 from 4.884 showing that now, the model is putting bigger partner counts into account. 
+
+
+We will now run a quassi poisson model, to see if the over dispersion will be better solved, and improved the model. 
+ 
 ```{r}
 
+quasipoisson_model3 <- glm(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
+    CaregiverResidencyDuration:UserLanguage,
+  family = quasipoisson(link = "log"),
+  data = data
+)
+
+# Summary of the quasi-Poisson model
+summary(quasipoisson_model3)
+
+# Calculate the dispersion parameter
+dispersion <- sum(residuals(poisson_model3, type = "pearson")^2) / df.residual(poisson_model3)
+dispersion
+
 
 ```
 
+The over dispersion rate has increased to 1.135, showing that quassi poisson modeling worsens the dispersion. 
+
+```{r}
+
+library(MASS)
+negbin_model3 <- glm.nb(
+  Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage +
+    CaregiverResidencyDuration:UserLanguage,
+  data = data
+)
+
+# Summary of the Negative Binomial model
+summary(negbin_model3)
+
+# Dispersion parameter (theta)
+negbin_model3$theta
 
 
+```
+Even from the negative binomial modeling with the same variables, we see an increase in standard error, compared to the standard error of poisson model 3. This shows that we can conclude that model 3 is better than the other two models, with the standard errors and over dispersion being smaller. 
 
+#Summary of modeling
+We have conducted several poisson models with the variables that were considerable as affecting the number of playmates. From the investigation starting with a simple model to a more complicated model, we could conclude that 
 
+Partners_count ~ Age + Sex + CaregiverImmigrate + CaregiverResidencyDuration + UserLanguage + CaregiverResidencyDuration:UserLanguage
 
+shows the best fit to examine the data. 
 
+We can see that Sex, Language, and CaregiverResidancyDuration:Language is statistically significant, meaning these are some of the most important variables that impact the number of partners count. 
 
-
-
-
-
-
-
+We can interpret the coefficients this way. Boys tend to have exp(0.183) increase in playmates than that of girls, with the error around 0.108 for the coefficients. Children who use Spanish tend to have exp(-1.191 ) decrease in playmates than who speak English with the error range of around 0.524. The interaction term shows that every month increase in the residency duration leads to an increase in exp(0.002568) of playmates, when the child uses Spanish. Hence, children who do speak Spanish will find more friends according to the increase in the months they stay in the Island. 
 
 
